@@ -1,0 +1,12 @@
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node modules / dependencies
+node_modules/
+package-lock.json
+
+# Environment / local configs
+.env
+.env.local

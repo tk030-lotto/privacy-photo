@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>写真の位置情報を消す・Exif削除ツール|PrivacyPhoto</title>
+  <meta name="description" content="写真の位置情報(GPS)やExifメタデータを、ブラウザ上で消去できる無料ツール。写真は外部に送信されません。JPEG・PNG・WebPに対応、登録不要。">
+
+  <!-- CSP: 外部通信の遮断・完全ローカル動作保証 (frame-ancestorsはHTTPヘッダ専用のため除外) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' blob:; script-src 'self'; style-src 'self'; form-action 'none';">
+  
+  <!-- OGP & Twitter Card -->
+  <meta property="og:title" content="写真の位置情報を消す・Exif削除ツール|PrivacyPhoto">
+  <meta property="og:description" content="写真の位置情報(GPS)やExifメタデータを、ブラウザ上で消去できる無料ツール。写真は外部に送信されません。">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+  <!-- System Fonts are defined in css/style.css (Zero external requests) -->
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- ヘッダー -->
+    <header class="app-header">
+      <div class="brand-badge">
+        <span class="pulse-dot"></span>
+        <span>ブラウザ内で処理・写真は外部に送信されません</span>
+      </div>
+      <h1 class="app-title">PrivacyPhoto <span class="app-title-sub">写真の位置情報(Exif)消しゴム</span></h1>
+      <p class="app-subtitle">写真に埋め込まれたGPS位置情報やExifメタデータをブラウザ上で解析・消去し、SNS等に共有できる画像を出力します。</p>
+    </header>
+
+    <!-- アラート通知コンテナ -->
+    <div id="alert-container" class="alert-container" role="alert" aria-live="polite"></div>
+
+    <!-- Step 1: アップロードセクション -->
+    <section id="upload-section" class="card" aria-label="画像選択エリア">
+      <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="ここに写真をドラッグ＆ドロップ またはクリックして画像を選択 写真を選択する 対応形式: JPEG / PNG / WebP（iPhoneのHEIC形式はJPEG変換後にご利用ください）">
+        <div class="drop-icon">📷</div>
+        <div class="drop-primary-text">ここに写真をドラッグ＆ドロップ</div>
+        <div class="drop-secondary-text">またはクリックして画像を選択</div>
+        <label for="file-input" class="btn btn-primary">写真を選択する</label>
+        <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp">
+        <div class="drop-hint">
+          <span>対応形式: JPEG / PNG / WebP（iPhoneのHEIC形式はJPEG変換後にご利用ください）</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 2: 解析結果セクション -->
+    <section id="analysis-section" class="card" aria-label="Exif解析結果エリア">
+      <div class="card-header">
+        <div class="card-title">
+          <span>🔍 メタデータ解析結果</span>
+        </div>
+        <div id="risk-badge" class="status-badge badge-warning">解析中</div>
+      </div>
+
+      <p id="risk-message"></p>
+
+      <!-- GPS詳細警告カード -->
+      <div id="gps-info-card" class="gps-card">
+        <div class="gps-title">
+          <span>📍 検出されたGPS位置情報</span>
+        </div>
+        <div id="gps-coordinates" class="gps-coords-display"></div>
+        <div class="gps-actions">
+          <div class="gps-action-row">
+            <a id="gps-map-link" class="gps-map-link" href="#" target="_blank" rel="noopener noreferrer">
+              <span>🗺️ Google マップで位置を確認</span>
+            </a>
+            <span id="gps-altitude"></span>
+          </div>
+          <p class="map-link-note">※クリックすると、位置情報(緯度・経度)が Google マップに送信されます。写真は送信されません。</p>
+        </div>
+      </div>
+
+      <!-- 解析グリッド: プレビュー ＆ メタデータテーブル -->
+      <div class="analysis-grid">
+        <div class="preview-container">
+          <img id="original-preview-img" class="preview-img" alt="読み込み画像のプレビュー">
+          <div class="preview-caption">元画像 (<span id="original-size-label">-- KB</span>)</div>
+        </div>
+
+        <div>
+          <table class="meta-table">
+            <tbody>
+              <tr>
+                <th>撮影日時</th>
+                <td id="meta-datetime">--</td>
+              </tr>
+              <tr>
+                <th>カメラ機種</th>
+                <td id="meta-camera">--</td>
+              </tr>
+              <tr>
+                <th>撮影時の向き</th>
+                <td id="meta-orientation">--</td>
+              </tr>
+              <tr>
+                <th>撮影設定</th>
+                <td id="meta-tech-details">--</td>
+              </tr>
+              <tr>
+                <th>ソフトウェア</th>
+                <td id="meta-software">--</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 除去アクション -->
+      <div class="action-bar">
+        <button id="clean-button" class="btn btn-primary btn-large">
+          <span>🛡️ Exifメタデータを消去する</span>
+        </button>
+        <button id="reselect-button" class="btn btn-secondary">
+          <span>別の写真を選ぶ</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Step 3: 処理中ローディングセクション -->
+    <section id="processing-section" class="card" aria-label="処理中インジケーター">
+      <div class="processing-container">
+        <div class="spinner"></div>
+        <div id="processing-text" class="processing-text">Exifメタデータを除去中...</div>
+      </div>
+    </section>
+
+    <!-- Step 4: 完了・結果セクション -->
+    <section id="result-section" class="card" aria-label="除去完了・ダウンロードエリア">
+      <div class="card-header">
+        <div class="card-title">
+          <span>✨ 処理完了・Exif再検証</span>
+        </div>
+        <div id="safety-badge" class="status-badge badge-safe">Exif メタデータは検出されませんでした</div>
+      </div>
+
+      <p id="safety-details"></p>
+
+      <!-- 比較統計グリッド -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">元画像サイズ</div>
+          <div id="size-before-label" class="stat-value">-- KB</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">処理後サイズ</div>
+          <div id="size-after-label" class="stat-value">-- KB</div>
+          <div id="size-diff-label" class="stat-badge stat-reduced">--%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">解像度</div>
+          <div id="res-after-label" class="stat-value">-- × --</div>
+          <div id="res-before-label">元: -- × --</div>
+        </div>
+      </div>
+
+      <!-- クリーン画像プレビュー -->
+      <div class="preview-container result-preview-container">
+        <img id="cleaned-preview-img" class="preview-img" alt="クリーン画像のプレビュー">
+        <div class="preview-caption">メタデータ除去済み画像 (画質92%・白背景合成済み)</div>
+      </div>
+
+      <!-- アクションボタン -->
+      <div class="action-bar">
+        <button id="download-button" class="btn btn-primary btn-large">
+          <span>💾 クリーン画像を保存する</span>
+        </button>
+        <button id="reset-button" class="btn btn-secondary">
+          <span>別の写真を処理する</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 免責事項 -->
+    <div class="disclaimer-banner">
+      【免責事項】本ツールの処理結果の利用は自己責任でお願いいたします。重要な写真は、処理後に位置情報が消去されていることをご自身でもご確認ください。
+    </div>
+  </div>
+
+  <!-- フッター -->
+  <footer class="app-footer">
+    <p>PrivacyPhoto - ブラウザ内で処理・写真は外部に送信されません</p>
+    <p class="footer-license">© 2026 <a href="https://zero-dev.jp/" target="_blank" rel="noopener noreferrer">Zero Dev (tk030)</a> | ライセンス: <a href="LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a> | Exif Cleaner for Photos</p>
+  </footer>
+
+  <!-- スクリプト -->
+  <script src="lib/exif.js"></script>
+  <script src="js/image-cleaner.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
