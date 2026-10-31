@@ -1,12 +1,14 @@
-# OS generated files
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Node modules / dependencies
-node_modules/
-package-lock.json
-
-# Environment / local configs
-.env
-.env.local
+# 許可リスト方式: すべて除外して、公開するものだけを許可する
+/*
+!/.gitignore
+!/.nojekyll
+!/index.html
+!/css/
+!/css/**
+!/js/
+!/js/**
+!/lib/
+!/lib/**
+!/favicon.svg
+!/LICENSE
+!/README.md

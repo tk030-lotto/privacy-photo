@@ -56,6 +56,12 @@
     const { img, url, width, height } = loaded;
 
     try {
+      const MAX_CANVAS_DIMENSION = 16384;
+      const MAX_CANVAS_PIXELS = 67108864; // 8192 x 8192 (約6,710万画素)
+      if (width > MAX_CANVAS_DIMENSION || height > MAX_CANVAS_DIMENSION || (width * height) > MAX_CANVAS_PIXELS) {
+        throw new Error(`画像の解像度（${width} × ${height} px）がブラウザの処理上限を超えています。縮小した画像でお試しください。`);
+      }
+
       const canvas = document.createElement('canvas');
 
       // ブラウザが自動補正した解像度をそのままCanvasサイズとして設定
@@ -81,7 +87,7 @@
             if (blob) {
               resolve(blob);
             } else {
-              reject(new Error('JPEGエンコード処理に失敗しました。'));
+              reject(new Error('JPEGエンコード処理に失敗しました。画像の解像度が大きすぎるか、メモリ不足の可能性があります。'));
             }
           },
           'image/jpeg',

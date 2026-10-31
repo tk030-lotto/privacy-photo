@@ -6,8 +6,8 @@
   <title>写真の位置情報を消す・Exif削除ツール|PrivacyPhoto</title>
   <meta name="description" content="写真の位置情報(GPS)やExifメタデータを、ブラウザ上で消去できる無料ツール。写真は外部に送信されません。JPEG・PNG・WebPに対応、登録不要。">
 
-  <!-- CSP: 外部通信の遮断・完全ローカル動作保証 (frame-ancestorsはHTTPヘッダ専用のため除外) -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' blob:; script-src 'self'; style-src 'self'; form-action 'none';">
+  <!-- CSP: 外部通信の遮断・ローカル動作 (frame-ancestorsはHTTPヘッダ専用のため除外) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none';">
   
   <!-- OGP & Twitter Card -->
   <meta property="og:title" content="写真の位置情報を消す・Exif削除ツール|PrivacyPhoto">

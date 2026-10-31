@@ -15,7 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     originalHeight: 0,
     cleanBlob: null,
     cleanImageUrl: null,
-    cleanedFileName: ''
+    cleanedFileName: '',
+    isProcessing: false,
+    analysisRunId: 0
   };
 
   // DOM要素の参照
@@ -88,6 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ドロップゾーン全体のクリック対応（ラベル・input自身のクリック時は二重発火を回避）
+  dropZone.addEventListener('click', (e) => {
+    if (e.target !== fileInput && !e.target.closest('label')) {
+      fileInput.click();
+    }
+  });
+
   // キーボード操作対応 (a11y)
   dropZone.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -114,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
 
   async function handleFileSelection(file) {
+    if (state.isProcessing) return;
     clearAlerts();
 
     if (!file) return;
@@ -154,12 +164,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 状態のクリーンアップ
     cleanupUrls();
     state.file = file;
+    const currentRunId = ++state.analysisRunId;
 
     // 解析中表示
     setSectionState('analyzing');
 
     try {
       const buffer = await readFileAsArrayBuffer(file);
+      if (currentRunId !== state.analysisRunId) return;
       const exifResult = PrivacyExif.parse(buffer);
       state.exifData = exifResult;
 
@@ -181,11 +193,13 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         originalPreviewImg.src = state.originalImageUrl;
       });
+      if (currentRunId !== state.analysisRunId) return;
 
       // 画面への描画
       renderAnalysisResult(file, exifResult);
       setSectionState('analyzed');
     } catch (err) {
+      if (currentRunId !== state.analysisRunId) return;
       console.error('画像解析エラー:', err);
       showAlert('danger', `画像の読み込み・解析に失敗しました: ${err.message || '不明なエラー'}`);
       setSectionState('initial');
@@ -208,7 +222,9 @@ document.addEventListener('DOMContentLoaded', () => {
       gpsInfoCard.style.display = 'block';
       const lat = exif.gpsDetails.latitude;
       const lon = exif.gpsDetails.longitude;
-      gpsCoordinates.textContent = `${lat > 0 ? '北緯' : '南緯'} ${Math.abs(lat)}°, ${lon > 0 ? '東経' : '西経'} ${Math.abs(lon)}° (${lat}, ${lon})`;
+      const latLabel = (exif.gpsDetails.latRef === 'S' || lat < 0) ? '南緯' : '北緯';
+      const lonLabel = (exif.gpsDetails.lonRef === 'W' || lon < 0) ? '西経' : '東経';
+      gpsCoordinates.textContent = `${latLabel} ${Math.abs(lat)}°, ${lonLabel} ${Math.abs(lon)}° (${lat}, ${lon})`;
 
       gpsMapLink.href = `https://www.google.com/maps?q=${lat},${lon}`;
       gpsMapLink.target = '_blank';
@@ -226,10 +242,15 @@ document.addEventListener('DOMContentLoaded', () => {
       riskBadge.textContent = '⚠️ メタデータを検出（GPSなし）';
       riskMessage.textContent = '位置情報は含まれていませんが、撮影日時やカメラ機種名などのメタデータが含まれています。';
       gpsInfoCard.style.display = 'none';
+    } else if (exif.parseError) {
+      riskBadge.className = 'status-badge badge-warning';
+      riskBadge.textContent = '⚠️ Exif解析警告（除去可能）';
+      riskMessage.textContent = 'Exif構造の一部が破損または非標準のため詳細を読み取れませんでした。そのまま除去処理を実行してクリーンな画像を生成できます。';
+      gpsInfoCard.style.display = 'none';
     } else {
       riskBadge.className = 'status-badge badge-safe';
       riskBadge.textContent = 'Exif メタデータは検出されませんでした';
-      riskMessage.textContent = 'この写真にはExifメタデータや位置情報は検出されませんでした。';
+      riskMessage.textContent = 'この写真にはExifメタデータや位置情報は検出されませんでした（XMP等の他メタデータ除去や再エンコードのために除去処理を実行することも可能です）。';
       gpsInfoCard.style.display = 'none';
     }
 
@@ -242,12 +263,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 向き補正
     const orientationMap = {
       1: '通常（0°）',
-      2: '水平反転',
-      3: '180°回転',
-      4: '垂直反転',
-      5: '90°反時計＋水平反転',
+      2: '水平反転（自動補正対象）',
+      3: '180°回転（自動補正対象）',
+      4: '垂直反転（自動補正対象）',
+      5: '90°反時計＋水平反転（自動補正対象）',
       6: '90°時計回り（自動補正対象）',
-      7: '90°時計＋水平反転',
+      7: '90°時計＋水平反転（自動補正対象）',
       8: '90°反時計回り（自動補正対象）'
     };
     metaOrientation.textContent = orientationMap[exif.orientation] || `値: ${exif.orientation}`;
@@ -269,8 +290,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
 
   async function handleExecuteClean() {
-    if (!state.file) return;
+    if (!state.file || state.isProcessing) return;
 
+    state.isProcessing = true;
+    cleanButton.disabled = true;
     setSectionState('processing');
 
     try {
@@ -279,8 +302,8 @@ document.addEventListener('DOMContentLoaded', () => {
       state.cleanBlob = cleanResult.blob;
       state.cleanImageUrl = cleanResult.url;
 
-      // 出力ファイル名決定
-      const originalBaseName = state.file.name.replace(/\.[^/.]+$/, '');
+      // 出力ファイル名決定（ドット始まり等で空になる場合は photo にフォールバック）
+      const originalBaseName = state.file.name.replace(/\.[^/.]+$/, '') || 'photo';
       state.cleanedFileName = `${originalBaseName}_clean.jpg`;
 
       // 除去後Blobの自律再検証
@@ -293,6 +316,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('除去処理エラー:', err);
       showAlert('danger', `メタデータ除去処理に失敗しました: ${err.message || '不明なエラー'}`);
       setSectionState('analyzed');
+    } finally {
+      state.isProcessing = false;
+      cleanButton.disabled = false;
     }
   }
 
