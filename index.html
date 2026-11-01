@@ -6,7 +6,13 @@
   <title>写真の位置情報を消す・Exif削除ツール|PrivacyPhoto</title>
   <meta name="description" content="写真の位置情報(GPS)やExifメタデータを、ブラウザ上で消去できる無料ツール。写真は外部に送信されません。JPEG・PNG・WebPに対応、登録不要。">
 
-  <!-- CSP: 外部通信の遮断・ローカル動作 (frame-ancestorsはHTTPヘッダ専用のため除外) -->
+  <!--
+    CSP: 外部通信の遮断・ローカル動作 (frame-ancestorsはHTTPヘッダ専用のため除外)
+    style-src の 'unsafe-inline' は、2026-10-31 の ba28a2b で追加した(WebKit で CSP 違反が出たため)。
+    対象になりうる操作: js/app.js の element.style.display の代入(画面の状態切替)。
+    代替案: classList の切り替えに変えれば 'self' に戻せるが、WebKit での再検証が済むまで外さない。
+    未確認: WebKit でどの操作が違反したかは特定できていない(レビュー D-6 / S-2、2026-11-01 記録)。
+  -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none';">
   
   <!-- OGP & Twitter Card -->

@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.originalImageUrl = URL.createObjectURL(file);
 
       // プレビュー画像のロード待機と解像度取得
-      await new Promise((resolve) => {
+      await new Promise((resolve, reject) => {
         originalPreviewImg.onload = () => {
           state.originalWidth = originalPreviewImg.naturalWidth;
           state.originalHeight = originalPreviewImg.naturalHeight;
@@ -189,7 +189,9 @@ document.addEventListener('DOMContentLoaded', () => {
           console.warn('プレビュー画像の描画に失敗しました。');
           state.originalWidth = 0;
           state.originalHeight = 0;
-          resolve();
+          // 画像として展開できないファイル（破損・偽装拡張子）で、解析結果へ進めない。
+          // 進めると「Exif メタデータは検出されませんでした」と表示され、安全だと誤解させる（レビュー K-1）。
+          reject(new Error('画像として読み込めませんでした。対応形式（JPEG・PNG・WebP）か、ファイルが壊れていないかをご確認ください。'));
         };
         originalPreviewImg.src = state.originalImageUrl;
       });
@@ -201,7 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       if (currentRunId !== state.analysisRunId) return;
       console.error('画像解析エラー:', err);
-      showAlert('danger', `画像の読み込み・解析に失敗しました: ${err.message || '不明なエラー'}`);
+      cleanupUrls();
+      showAlert('danger', `画像の読み込みに失敗しました: ${err.message || '不明なエラー'}`);
       setSectionState('initial');
     }
   }

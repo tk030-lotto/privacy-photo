@@ -47,6 +47,8 @@
    * 画像からExifメタデータを除去し、白背景合成・再エンコードを行ってクリーンなJPEG Blobを生成する
    * ※モダンブラウザ（Chromium, Safari, Firefox等）は画像デコード時にExif Orientationを自動適用するため、
    * 手動回転を行うと二重回転（横倒しや逆さま）の原因になります。そのためブラウザの補正済み寸法をそのまま使用します。
+   * 【変更禁止】ここに ctx.rotate / ctx.scale を追加しないこと。仕様書・README の「回転補正」は、
+   * この委譲（ブラウザの自動補正）を指す。2026-11-01 に記述を統一した（レビュー D-5）。
    * @param {File|Blob} fileOrBlob
    * @param {number} quality (デフォルト: 0.92)
    * @returns {Promise<{blob: Blob, width: number, height: number, url: string}>}
