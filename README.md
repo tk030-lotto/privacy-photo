@@ -47,3 +47,6 @@
 MIT License です。詳細は [LICENSE](LICENSE) を参照してください。
 
 © 2026 Zero Dev (tk030)
+
+[![Tsukuttaに掲載中](https://tsukutta.app/api/badge/f43312bf-00d4-4c8b-9914-8c1ab6831fb8?lang=ja)](https://tsukutta.app/apps/f43312bf-00d4-4c8b-9914-8c1ab6831fb8)
+[![つくるログ 掲載ツール](https://tsukurulog.com/badge/tsukurulog-badge.svg)](https://tsukurulog.com/picks/privacy-photo-exif/?ref=badge)
